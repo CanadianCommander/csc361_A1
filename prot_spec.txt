@@ -1,0 +1,10 @@
+*** specification excludes ACK message ***
+
+General Msg format: [1 byte msg type] + other
+
+>> 0x00 <file path>
+<< 0x01 or 0x02
+
+<< 0x10 [4 bytes currentPkg] [ 4 bytes totalPkgCount] 8 -> file data
+
+>> 0x03 THANKS
