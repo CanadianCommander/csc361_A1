@@ -50,5 +50,25 @@ void NetworkLoop(int socket,char * ipAddr, int port, char * targetFile){
     return;
   }
 
+  if(!SafeRecv(socket,message, NETWORK_BUFFER_SIZE, ipAddr, &port)){
+    printf("ERROR: did not get FTP_FOUND or FTP_NOT_FOUND msg from server\n");
+    return;
+  }
+
+  if(message[0] == FTP_FOUND){
+    //recieve file packets
+    char * fileData;
+    int fileLen = RecvFile(socket,&fileData,ipAddr,&port);
+    WriteBufferToFile("foo.txt",fileData,fileLen);
+  }
+  else if (message[0] == FTP_NOT_FOUND){
+    printf("ERROR: server could not find file\n");
+    return;
+  }
+  else{
+    printf("ERROR: unexpected message %x", message[0]);
+    return;
+  }
+
 
 }

@@ -5,7 +5,17 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "network.h"
+
+short GetChunkLength(char * buff){
+  if(buff[0] != FTP_FILE_PACKAGE){
+    printf("ERROR: buffer is not a file packet! it is: %x\n", buff[0]);
+    return -1;
+  }
+
+  return ntohs(*(short*)(buff + 1));
+}
 
 int CreateServerSocket(char * ipAddr, int port){
   struct sockaddr_in sa;
@@ -68,10 +78,10 @@ int SafeSend(int sock, char * buffer, long bufferSize, char * ipAddr, int * port
 
     int recv = Recv(sock,ack,NETWORK_ACK_SIZE, 0,0);
     if(recv < 1){
-      printf("ERROR: bad ack On safe send!");
+      printf("ERROR: bad ack On safe send!\n");
       return 0;
     }
-    else if (strcmp(ack,"ACK") == 0){
+    else if (ack[0] == NETWORK_ACK){
       return 1;
     }
     else{
@@ -81,7 +91,7 @@ int SafeSend(int sock, char * buffer, long bufferSize, char * ipAddr, int * port
   }
 
   if (i == NETWORK_RETRY_COUNT){
-    printf("ERROR: Safe send retry count exceeded!");
+    printf("ERROR: Safe send retry count exceeded!\n");
     return 0;
   }
   else{
@@ -94,6 +104,71 @@ int SafeRecv(int sock, void * buffer, long bufferSize, char * ip_out, int * port
   Recv(sock,buffer,bufferSize,ip_out,port_out);
 
   //send ack
-  Send(sock,NETWORK_ACK,NETWORK_ACK_SIZE,ip_out,port_out);
+  char ack = NETWORK_ACK;
+  Send(sock,&ack,NETWORK_ACK_SIZE,ip_out,port_out);
   return 1;
+}
+
+
+extern int SendFile(int sock, void * buffer, long bufferSize, char * ipAddr, int * portNum){
+  char * ptrBuff = buffer;
+  int bytesLeft = bufferSize;
+  char messageBuffer[NETWORK_BUFFER_SIZE];
+
+  while(bytesLeft > 0){
+    ushort writeSize = bytesLeft > (NETWORK_BUFFER_SIZE -3) ? (NETWORK_BUFFER_SIZE -3) : bytesLeft;
+    bytesLeft -= writeSize;
+
+    memset(messageBuffer,0,NETWORK_BUFFER_SIZE);
+    messageBuffer[0] = FTP_FILE_PACKAGE;
+    ushort wSize = htons(writeSize);
+    memcpy(messageBuffer + 1, &wSize, 2);
+    memcpy(messageBuffer + 3, ptrBuff, writeSize);
+    if(!SafeSend(sock,messageBuffer, writeSize, ipAddr,portNum)){
+      printf("ERROR: Transmision Error when sending file\n");
+      return 0;
+    }
+    ptrBuff += writeSize;
+  }
+
+  char ftp_end = FTP_FILE_END;
+  if(!SafeSend(sock,&ftp_end,1,ipAddr,portNum)){
+    printf("ERROR: could not send: FTP_FILE_END");
+    return 0;
+  }
+
+  return 1;
+}
+
+
+extern int RecvFile(int sock, char ** ptrBuff,char * ipAddr,int * portNum){
+  char packetBuffer[NETWORK_BUFFER_SIZE];
+  memset(packetBuffer, 0, NETWORK_BUFFER_SIZE);
+
+  //allocate return buffer
+  char ** fileBuffer = malloc(sizeof(void *)*NETWORK_FILE_BUFFER_SIZE);
+  int fbIndex = 0;
+
+  printf("recieving file....");
+  while(packetBuffer[0] != FTP_FILE_END){
+    memset(packetBuffer, 0, NETWORK_BUFFER_SIZE);
+    SafeRecv(sock,packetBuffer, NETWORK_BUFFER_SIZE, ipAddr, portNum);
+
+    char * buff = malloc(NETWORK_BUFFER_SIZE);
+    memcpy(buff, packetBuffer, NETWORK_BUFFER_SIZE);
+    fileBuffer[fbIndex++] = buff;
+  }
+  printf(".complete\n");
+
+  *ptrBuff = malloc(fbIndex*NETWORK_BUFFER_SIZE);
+  memset(*ptrBuff,0,fbIndex*NETWORK_BUFFER_SIZE);
+  int pbIndex = 0;
+  // reconstruct file
+  for(int i =0; i < fbIndex-1; i++){
+    int chunkLength = GetChunkLength(fileBuffer[i]);
+    memcpy(*ptrBuff + pbIndex, (fileBuffer[i]) + 3, chunkLength);
+    pbIndex += chunkLength;
+  }
+
+  return pbIndex;
 }

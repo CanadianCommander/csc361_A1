@@ -36,7 +36,7 @@ int main(int argv, char ** argc){
     exit(1);
   }
   else{
-    printf("Server Running on dir: %s", argc[1]);
+    printf("Server Running on dir: %s\n", argc[1]);
   }
 
   NetworkLoop(sock);
@@ -61,13 +61,31 @@ void NetworkLoop(int socket){
     if(message[0] == FTP_GET){
       if(FileExists(message+1)){
         // FOUND
+        char found = FTP_FOUND;
+        if(SafeSend(socket, &found,1,ipAddr, &port)){
+
+          printf("Starting file transmision\n");
+          // SEND FILE
+          long fSize = GetFileSizeBytes(message+1);
+          char * fileBuffer = malloc(fSize);
+          memset(fileBuffer, 0 , fSize);
+          ReadFileToBuffer(message + 1, fileBuffer,fSize);
+          if(SendFile(socket, fileBuffer, fSize, ipAddr, &port)){
+            printf("file transmision complete\n");
+          }
+          else{
+            printf("ERROR: could not send file\n");
+          }
+        }
       }
       else{
         // NOT FOUND
+        char notFound = FTP_NOT_FOUND;
+        SafeSend(socket, &notFound,1,ipAddr, &port);
       }
     }
     else if(message[0] == FTP_THANKS){
-
+      printf("Client Says Bye!\n");
     }
     else{
       printf("ERROR: unknown control sequence %x\n", message[0]);
