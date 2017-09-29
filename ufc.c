@@ -59,7 +59,7 @@ void NetworkLoop(int socket,char * ipAddr, int port, char * targetFile){
     //recieve file packets
     char * fileData;
     int fileLen = RecvFile(socket,&fileData,ipAddr,&port);
-    WriteBufferToFile("foo.txt",fileData,fileLen);
+    WriteBufferToFile(strcat(targetFile, ".dl"),fileData,fileLen);
   }
   else if (message[0] == FTP_NOT_FOUND){
     printf("ERROR: server could not find file\n");

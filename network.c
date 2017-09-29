@@ -124,7 +124,7 @@ extern int SendFile(int sock, void * buffer, long bufferSize, char * ipAddr, int
     ushort wSize = htons(writeSize);
     memcpy(messageBuffer + 1, &wSize, 2);
     memcpy(messageBuffer + 3, ptrBuff, writeSize);
-    if(!SafeSend(sock,messageBuffer, writeSize, ipAddr,portNum)){
+    if(!SafeSend(sock,messageBuffer, writeSize + 3, ipAddr,portNum)){
       printf("ERROR: Transmision Error when sending file\n");
       return 0;
     }
@@ -160,12 +160,16 @@ extern int RecvFile(int sock, char ** ptrBuff,char * ipAddr,int * portNum){
   }
   printf(".complete\n");
 
-  *ptrBuff = malloc(fbIndex*NETWORK_BUFFER_SIZE);
-  memset(*ptrBuff,0,fbIndex*NETWORK_BUFFER_SIZE);
+  *ptrBuff = malloc((fbIndex-1)*NETWORK_BUFFER_SIZE);
+  memset(*ptrBuff,0,(fbIndex-1)*NETWORK_BUFFER_SIZE);
   int pbIndex = 0;
   // reconstruct file
   for(int i =0; i < fbIndex-1; i++){
     int chunkLength = GetChunkLength(fileBuffer[i]);
+    if (chunkLength == -1){
+      return 0;
+    }
+
     memcpy(*ptrBuff + pbIndex, (fileBuffer[i]) + 3, chunkLength);
     pbIndex += chunkLength;
   }
