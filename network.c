@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "network.h"
 
 short GetChunkLength(char * buff){
@@ -31,14 +32,57 @@ int CreateServerSocket(char * ipAddr, int port){
   return mySocket;
 }
 
+int CreateServerSocketTCP(char * ipAddr, int port){
+  struct sockaddr_in sa;
+  int mySocket = socket(AF_INET,SOCK_STREAM, 0);
+
+  memset(&sa, 0, sizeof(sa));
+  sa.sin_family = AF_INET;
+  sa.sin_port = htons(port);
+  inet_pton(AF_INET, ipAddr, &sa.sin_addr);
+
+  bind(mySocket, (struct sockaddr *)&sa, sizeof(sa));
+
+  listen(mySocket, 1);
+
+  uint addrLen;
+  return accept(mySocket, (struct sockaddr *)&sa, &addrLen);
+}
 
 int CreateClientSocket(){
   int mySocket = socket(AF_INET,SOCK_DGRAM, 0);
   return mySocket;
 }
 
+int CreateClientSocketTCP(char * ipAdder, int port){
+  int newSock = socket(AF_INET,SOCK_STREAM, 0);
+  struct sockaddr_in sa;
+
+  memset(&sa, 0, sizeof(sa));
+  sa.sin_family = AF_INET;
+  sa.sin_port = htons(port);
+  inet_pton(AF_INET, ipAdder, &sa.sin_addr);
+
+  connect(newSock, (struct sockaddr *)&sa, sizeof(sa));
+  return newSock;
+}
+
 void CloseSocket(int sock){
   close(sock);
+}
+
+int RecvTCP(int sock, void * buffer, long bufferSize){
+  int bytesReceived = recv(sock, buffer, bufferSize,0);
+
+  return bytesReceived;
+}
+
+int SendTCP(int sock, void * buffer, long bufferSize){
+  char messageBuffer[NETWORK_BUFFER_SIZE];
+  memset(&messageBuffer,0,NETWORK_BUFFER_SIZE);
+  memcpy(&messageBuffer,buffer,bufferSize);
+
+  return send(sock,&messageBuffer,NETWORK_BUFFER_SIZE,0);
 }
 
 int Recv(int sock,void * buffer,long bufferSize, char * ip_out, int * port_out){
@@ -124,7 +168,7 @@ extern int SendFile(int sock, void * buffer, long bufferSize, char * ipAddr, int
     ushort wSize = htons(writeSize);
     memcpy(messageBuffer + 1, &wSize, 2);
     memcpy(messageBuffer + 3, ptrBuff, writeSize);
-    if(!SafeSend(sock,messageBuffer, writeSize + 3, ipAddr,portNum)){
+    if(!SendTCP(sock,messageBuffer, writeSize + 3)){
       printf("ERROR: Transmision Error when sending file\n");
       return 0;
     }
@@ -132,7 +176,7 @@ extern int SendFile(int sock, void * buffer, long bufferSize, char * ipAddr, int
   }
 
   char ftp_end = FTP_FILE_END;
-  if(!SafeSend(sock,&ftp_end,1,ipAddr,portNum)){
+  if(!SendTCP(sock,&ftp_end,1)){
     printf("ERROR: could not send: FTP_FILE_END");
     return 0;
   }
@@ -149,11 +193,11 @@ extern int RecvFile(int sock, char ** ptrBuff,char * ipAddr,int * portNum){
   char ** fileBuffer = malloc(sizeof(void *)*NETWORK_FILE_BUFFER_SIZE);
   int fbIndex = 0;
 
-  printf("recieving file....");
+  printf("recieving file....\n");
   while(packetBuffer[0] != FTP_FILE_END){
     memset(packetBuffer, 0, NETWORK_BUFFER_SIZE);
-    SafeRecv(sock,packetBuffer, NETWORK_BUFFER_SIZE, ipAddr, portNum);
-
+    RecvTCP(sock,packetBuffer, NETWORK_BUFFER_SIZE);
+    
     char * buff = malloc(NETWORK_BUFFER_SIZE);
     memcpy(buff, packetBuffer, NETWORK_BUFFER_SIZE);
     fileBuffer[fbIndex++] = buff;

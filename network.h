@@ -22,9 +22,17 @@ extern short GetChunkLength(char * buff);
 
 extern int CreateServerSocket(char * ipAddr, int port);
 
+extern int CreateServerSocketTCP(char * ipAddr, int port);
+
 extern int CreateClientSocket();
 
+extern int CreateClientSocketTCP(char * ipAdder, int port);
+
 extern void CloseSocket(int sock);
+
+extern int RecvTCP(int sock, void * buffer, long bufferSize);
+
+extern int SendTCP(int sock, void * buffer, long bufferSize);
 
 extern int Recv(int sock,void * buffer,long bufferSize, char * ip_out, int * port_out);
 

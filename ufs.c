@@ -25,7 +25,7 @@ int main(int argv, char ** argc){
     exit(1);
   }
 
-  int sock = CreateServerSocket(ipInfo.ipAddr, ipInfo.portNumber);
+  int sock = CreateServerSocketTCP(ipInfo.ipAddr, ipInfo.portNumber);
   if (sock == -1){
     printf("ERROR: failed to create socket!!!");
     exit(1);
@@ -56,13 +56,13 @@ void NetworkLoop(int socket){
   while(1){
     memset(message,0, NETWORK_BUFFER_SIZE);
     memset(ipAddr,0,50);
-    SafeRecv(socket,message,NETWORK_BUFFER_SIZE,ipAddr,&port);
+    RecvTCP(socket,message,NETWORK_BUFFER_SIZE);
 
     if(message[0] == FTP_GET){
       if(FileExists(message+1)){
         // FOUND
         char found = FTP_FOUND;
-        if(SafeSend(socket, &found,1,ipAddr, &port)){
+        if(SendTCP(socket, &found,1)){
 
           printf("Starting file transmision\n");
           // SEND FILE
@@ -81,7 +81,7 @@ void NetworkLoop(int socket){
       else{
         // NOT FOUND
         char notFound = FTP_NOT_FOUND;
-        SafeSend(socket, &notFound,1,ipAddr, &port);
+        SendTCP(socket, &notFound,1);
       }
     }
     else if(message[0] == FTP_THANKS){
