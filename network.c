@@ -73,7 +73,7 @@ void CloseSocket(int sock){
 }
 
 int RecvTCP(int sock, void * buffer, long bufferSize){
-  int bytesReceived = recv(sock, buffer, bufferSize,0);
+  int bytesReceived = recv(sock, buffer, bufferSize,MSG_WAITALL);
 
   return bytesReceived;
 }
