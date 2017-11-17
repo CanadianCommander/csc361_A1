@@ -15,6 +15,7 @@
 #define FTP_FILE_END 0x03
 #define FTP_THANKS 0x04
 #define NETWORK_ACK 0x05
+#define FTP_POST 0x06
 // ---------------------------
 #define FTP_FILE_PACKAGE 0x10
 
@@ -47,5 +48,7 @@ extern int SafeRecv(int sock, void * buffer, long bufferSize, char * ip_out, int
 extern int SendFile(int sock, void * buffer, long bufferSize, char * ipAddr, int * portNum);
 
 extern int RecvFile(int sock, char ** ptrBuff,char * ipAddr, int * portNum);
+
+extern void TransmitFile(int socket, char * filePath);
 
 #endif

@@ -20,7 +20,7 @@ int main(int argv, char ** argc){
   struct IpInfo ipInfo;
   int res = GetIpInfo("client.conf", &ipInfo);
   if(res == 0){
-    printf("ERROR: could not find server.conf!");
+    printf("ERROR: could not find client.conf!");
     exit(1);
   }
 
@@ -42,33 +42,35 @@ int main(int argv, char ** argc){
 void NetworkLoop(int socket,char * ipAddr, int port, char * targetFile){
   char message[NETWORK_BUFFER_SIZE];
   memset(message,0, NETWORK_BUFFER_SIZE);
-  message[0] = FTP_GET;
+  message[0] = FTP_POST;
   strcpy(1 + message,targetFile);
 
   if(!SendTCP(socket,message,NETWORK_BUFFER_SIZE)){
-    printf("ERROR: could not send message to server!\n");
+    printf("ERROR: could not send POST message to server!\n");
     return;
   }
 
-  if(!RecvTCP(socket,message, NETWORK_BUFFER_SIZE)){
-    printf("ERROR: did not get FTP_FOUND or FTP_NOT_FOUND msg from server\n");
+  //send zip file
+  TransmitFile(socket,targetFile);
+
+  // request the unziped file
+  memset(message,0, NETWORK_BUFFER_SIZE);
+  message[0] = FTP_GET;
+  if(!SendTCP(socket,message,NETWORK_BUFFER_SIZE)){
+    printf("ERROR: could not send GET message to server!\n");
     return;
   }
 
-  if(message[0] == FTP_FOUND){
-    //recieve file packets
-    char * fileData;
-    int fileLen = RecvFile(socket,&fileData,ipAddr,&port);
-    WriteBufferToFile(strcat(targetFile, ".dl"),fileData,fileLen);
-  }
-  else if (message[0] == FTP_NOT_FOUND){
-    printf("ERROR: server could not find file\n");
+  //recieve file packets
+  char * fileData;
+  int fileLen = RecvFile(socket,&fileData,NULL,NULL);
+  WriteBufferToFile(strcat(targetFile, ".dl"),fileData,fileLen);
+
+  // say good bye
+  memset(message,0, NETWORK_BUFFER_SIZE);
+  message[0] = FTP_THANKS;
+  if(!SendTCP(socket,message,NETWORK_BUFFER_SIZE)){
+    printf("ERROR: could not send THANKS message to server!\n");
     return;
   }
-  else{
-    printf("ERROR: unexpected message %x", message[0]);
-    return;
-  }
-
-
 }

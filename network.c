@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include "network.h"
+#include "io.h"
 
 short GetChunkLength(char * buff){
   if(buff[0] != FTP_FILE_PACKAGE){
@@ -197,7 +198,7 @@ extern int RecvFile(int sock, char ** ptrBuff,char * ipAddr,int * portNum){
   while(packetBuffer[0] != FTP_FILE_END){
     memset(packetBuffer, 0, NETWORK_BUFFER_SIZE);
     RecvTCP(sock,packetBuffer, NETWORK_BUFFER_SIZE);
-    
+
     char * buff = malloc(NETWORK_BUFFER_SIZE);
     memcpy(buff, packetBuffer, NETWORK_BUFFER_SIZE);
     fileBuffer[fbIndex++] = buff;
@@ -219,4 +220,19 @@ extern int RecvFile(int sock, char ** ptrBuff,char * ipAddr,int * portNum){
   }
 
   return pbIndex;
+}
+
+void TransmitFile(int socket, char * filePath){
+  printf("Starting file transmision\n");
+  // SEND FILE
+  long fSize = GetFileSizeBytes(filePath);
+  char * fileBuffer = malloc(fSize);
+  memset(fileBuffer, 0 , fSize);
+  ReadFileToBuffer(filePath, fileBuffer,fSize);
+  if(SendFile(socket, fileBuffer, fSize, "FOOBAR", NULL)){
+    printf("file transmision complete\n");
+  }
+  else{
+    printf("ERROR: could not send file\n");
+  }
 }

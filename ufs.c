@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <zip.h>
 #include "io.h"
 #include "network.h"
 
@@ -52,40 +53,50 @@ void NetworkLoop(int socket){
   char message[NETWORK_BUFFER_SIZE];
   char ipAddr[50];// dat magic number tho
   int  port;
+  char * fileData;
+  int fileDataLen = 0;
 
   while(1){
     memset(message,0, NETWORK_BUFFER_SIZE);
     memset(ipAddr,0,50);
     RecvTCP(socket,message,NETWORK_BUFFER_SIZE);
 
-    if(message[0] == FTP_GET){
-      if(FileExists(message+1)){
-        // FOUND
-        char found = FTP_FOUND;
-        if(SendTCP(socket, &found,1)){
+    if(message[0] == FTP_POST){
+      // recv file
 
-          printf("Starting file transmision\n");
-          // SEND FILE
-          long fSize = GetFileSizeBytes(message+1);
-          char * fileBuffer = malloc(fSize);
-          memset(fileBuffer, 0 , fSize);
-          ReadFileToBuffer(message + 1, fileBuffer,fSize);
-          if(SendFile(socket, fileBuffer, fSize, ipAddr, &port)){
-            printf("file transmision complete\n");
-          }
-          else{
-            printf("ERROR: could not send file\n");
-          }
-        }
+      fileDataLen = RecvFile(socket,&fileData,NULL,NULL);
+
+      //decompress the file. turns out libzip cannot decompress
+      // in memory buffers :(
+      WriteBufferToFile("tmp.foo.bar",fileData,fileDataLen);
+      struct zip * pZip = zip_open("tmp.foo.bar",0,NULL);
+      struct zip_file * zFile = zip_fopen_index(pZip,0,0);
+      struct zip_stat stat;
+      zip_stat_index(pZip,0,0,&stat);
+
+      free(fileData);
+      fileData = malloc(stat.size);
+      memset(fileData,0,stat.size);
+      fileDataLen = stat.size;
+      zip_fread(zFile,fileData,stat.size);
+
+      zip_fclose(zFile);
+      zip_close(pZip);
+
+      system("rm tmp.foo.bar");
+    }
+    else if(message[0] == FTP_GET){
+      // send file back to client
+      if(fileDataLen > 0){
+        SendFile(socket, fileData, fileDataLen, NULL, NULL);
       }
       else{
-        // NOT FOUND
-        char notFound = FTP_NOT_FOUND;
-        SendTCP(socket, &notFound,1);
+        printf("ERROR: no file data to send!\n");
       }
     }
     else if(message[0] == FTP_THANKS){
       printf("Client Says Bye!\n");
+      break;
     }
     else{
       printf("ERROR: unknown control sequence %x\n", message[0]);
