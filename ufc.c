@@ -4,9 +4,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <sys/time.h>
 #include "io.h"
 #include "network.h"
-
 
 void NetworkLoop(int socket,char * ipAddr, int port, char * targetFile);
 
@@ -42,9 +42,11 @@ int main(int argv, char ** argc){
 void NetworkLoop(int socket,char * ipAddr, int port, char * targetFile){
   char message[NETWORK_BUFFER_SIZE];
   memset(message,0, NETWORK_BUFFER_SIZE);
+  struct timeval begin_time, end_time;
+
+  gettimeofday(&begin_time,NULL);
   message[0] = FTP_POST;
   strcpy(1 + message,targetFile);
-
   if(!SendTCP(socket,message,NETWORK_BUFFER_SIZE)){
     printf("ERROR: could not send POST message to server!\n");
     return;
@@ -73,4 +75,7 @@ void NetworkLoop(int socket,char * ipAddr, int port, char * targetFile){
     printf("ERROR: could not send THANKS message to server!\n");
     return;
   }
+
+  gettimeofday(&end_time,NULL);
+  printf("transfer time: %lf ms\n",(end_time.tv_sec - begin_time.tv_sec)*1000.0 + (end_time.tv_usec - begin_time.tv_usec)/1000.0);
 }

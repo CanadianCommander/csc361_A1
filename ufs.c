@@ -26,6 +26,8 @@ int main(int argv, char ** argc){
     exit(1);
   }
 
+  printf("server running on: %s:%d\n",ipInfo.ipAddr, ipInfo.portNumber);
+
   int sock = CreateServerSocketTCP(ipInfo.ipAddr, ipInfo.portNumber);
   if (sock == -1){
     printf("ERROR: failed to create socket!!!");
@@ -35,9 +37,6 @@ int main(int argv, char ** argc){
   if(chdir(argc[1]) == -1){
     printf("ERROR: could not find directory: %s \n", argc[1]);
     exit(1);
-  }
-  else{
-    printf("Server Running on dir: %s\n", argc[1]);
   }
 
   NetworkLoop(sock);
